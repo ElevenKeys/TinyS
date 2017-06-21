@@ -1,12 +1,18 @@
-Usage:
-git clone https://www.github.com/ElevenKeys/TinyS.git
-make
-sudo ./TinyS
+﻿## TinyS  
+TinyS is a simple HTTP server, which supports both static resources and reverse proxy. 
 
-Now you can visit bilibili from localhost(127.0.0.1).O(∩_∩)O~~
+## Usage  
+```
+git clone https://www.github.com/ElevenKeys/TinyS.git  
+make  
+sudo ./TinyS  
+```
 
-TinyS is simple HTTP server, which supports static resources and reverse proxy.It is event-driven server, whice maintains a message queue internally.When request comes, The main thread catches it and generates a message, then the worker threads fetch it from queue and handle it.
+Now you can visit bilibili from localhost(127.0.0.1). O(∩_∩)O~~  
 
-As a lock of URL routing function, the HTTP server can't switch between static file and reverse proxy automatically now.The routing may be introduced in TinyS the following version.So does the configuration.
+## About
+TinyS is a event-driven server, whice implemented by a internal message loop. When the request comes, main thread catches it and generates a message, then the worker threads fetch it from the message queue and handle it. 
 
-The proxy is divides into modules.Now only direct proxy, which just transmit the raw request and response, is supported,the interface of fastcgi and uwsgi were given, yet not implemented.
+As a lock of URL routing, the HTTP server can't switch automatically between visiting local file and reverse proxy now. The function of routing may be introduced in TinyS the following version. So does the configuration.
+
+The reverse proxy is divided into several modules. Now only direct proxy, which just transmit the request and response, is supported. The interface of fastcgi and uwsgi were given, not implemented yet.
