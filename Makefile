@@ -1,5 +1,7 @@
 CC=gcc
-CFLAGS = -Wall -O0 -g -I./ -DDEBUG 
+#DEBUG = -DDEBUG
+DEBUG = 
+CFLAGS = -Wall -O0 -g -I./ $(DEBUG)  
 OUTPATH = ./bin
 obj = tiny_io.o tiny_log.o tiny_poll.o tiny_socket.o  tiny_mq.o tiny_proxy_module.o tiny_worker.o tiny_start.o tiny_module.o
 
@@ -41,10 +43,3 @@ $(OUTPATH)/tiny_module.o:tiny_module.c
 clean:
 	rm -rf *.o $(OUTPATH)/*.o
 
-unittest:testio
-
-testio: tiny_io.o testio.o
-	$(CC) -lpthread -o testio tiny_io.o testio.o
-
-testio.o: testio.c
-	$(CC) $(CFLAGS) -c testio.c

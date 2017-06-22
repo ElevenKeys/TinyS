@@ -75,6 +75,8 @@ tcp_listen(const char *host, const char *serv, socklen_t *addrlenp)
 
 		if (bind(listenfd, res->ai_addr, res->ai_addrlen) == 0)
 			break;
+		else
+			tiny_error("unable bind to %s", serv);
 
 		close(listenfd);
 	} while ((res = res->ai_next) != NULL);

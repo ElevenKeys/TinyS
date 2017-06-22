@@ -37,7 +37,7 @@ int
 poll_add(int fd, void *ud)
 {
 	struct epoll_event ev;
-	/*set_noblock(fd);*/
+	set_noblock(fd);
 	ev.data.ptr = ud;
 	ev.events = EPOLLIN|EPOLLET;
 	return epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);

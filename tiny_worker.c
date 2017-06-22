@@ -155,7 +155,7 @@ dispatch(struct tiny_msg *msg)
 	}
 }
 
-	void
+void
 closesock(struct tiny_msg *msg)
 {
 	//release the fd and message
@@ -165,8 +165,8 @@ closesock(struct tiny_msg *msg)
 	}
 
 	assert(msg->fd_from >= 0);
-	close(msg->fd_from);
 	poll_del(msg->fd_from);
+	close(msg->fd_from);
 
 	free(msg);
 }
@@ -226,6 +226,7 @@ routine(void *arg)
 		if (msg->buf != NULL) {
 			tiny_initbuf(msg->buf, msg->bufsize);
 			free(msg->buf);
+			msg->buf = NULL;
 		} else {
 			tiny_initbuf(NULL, 0);
 		}
