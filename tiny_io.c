@@ -159,7 +159,6 @@ tiny_readn(int fd, char *buf, size_t len)
 	io_buffer *innebuf;
 	size_t n_left = len;
 	ssize_t n_read;
-	char temp[len];
 
 	if (initio(&innebuf) < 0)
 		return -1;
@@ -171,11 +170,6 @@ tiny_readn(int fd, char *buf, size_t len)
 		else if (n_read == 0)
 			break;
 		else {
-#ifdef DEBUG
-	memcpy(temp, buf, n_read);
-	temp[n_read+1] = 0;
-	debug("read %d byte: %s", n_read, temp);
-#endif
 			buf += n_read;
 			n_left -= n_read;
 		}
@@ -218,9 +212,9 @@ tiny_readline(int fd, char *buf, size_t maxsize, int endline_type)
 	}
 
 	*++bufp = 0;
-#ifdef DEBUG
-	debug("readline :%s", buf);
-#endif
+//#ifdef DEBUG
+	//debug("readline :%s", buf);
+//#endif
 	return n;
 }
 
@@ -257,10 +251,10 @@ tiny_peekline(int fd, char *buf, size_t maxsize, int endline_type)
 			return -1;
 	}
 
-#ifdef DEBUG
-	*++bufp = 0;
-	debug("peekline :%s", buf);
-#endif
+//#ifdef DEBUG
+	//*++bufp = 0;
+	//debug("peekline :%s", buf);
+//#endif
 	return n;
 }
 
@@ -269,13 +263,7 @@ tiny_writen(int fd, const void * buff, size_t n)
 {
 	size_t n_left = n;
 	ssize_t n_writen;
-	char temp[n + 1];
 
-#ifdef DEBUG
-		memcpy(temp, buff, n);
-		temp[n] = 0;
-		debug("write %d byte:%s", n, temp);
-#endif
 	while (n_left > 0) {
 		n_writen = write(fd, buff, n_left);
 		if (n_writen < 0) {

@@ -129,9 +129,6 @@ proxy_forward(struct tiny_msg *msg)
 	}
 
 	loop_write(msg, msg->fd_from, msg->fd_to, len);
-#ifdef DEBUG
-	debug("%s", "finish forward");
-#endif
 	return NULL;
 }
 
@@ -214,15 +211,13 @@ proxy_response(struct tiny_msg *msg)
 
 			writen_wrapper(msg->fd_from, buf, readcnt);
 
-			if(toberead == 0)
+			if(toberead == 0) {
 				return NULL;
+			}
 		}
 	} else {
 		//parse fixed size body
 		loop_write(msg, msg->fd_to, msg->fd_from, len);
-#ifdef DEBUG
-		debug("%s", "finish response");
-#endif
 		return NULL;
 	}
 }

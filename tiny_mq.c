@@ -8,7 +8,7 @@
 #include "tiny_config.h"
 #include "spinlock.h"
 
-#define DEFAULT_QUEUE_SIZE 64
+#define DEFAULT_QUEUE_SIZE 9192 
 #define MAX_QUEUE_SIZE 1024
 
 

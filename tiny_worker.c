@@ -58,7 +58,7 @@ readfile(int fd, char *filename)
 	void *filep;
 	struct stat sbuf;
 	char buf[BUFFSIZE], filetype[MAXLINE];
-	time_t ticks;
+	//time_t ticks;
 
 	if (stat(filename, &sbuf) < 0) {
 		clienterror(fd, 404, "Not found");
@@ -72,9 +72,8 @@ readfile(int fd, char *filename)
 
 	sprintf(buf, "HTTP/1.1 200 OK\r\n");
 	sprintf(buf, "%sServer: TinyS\r\n", buf);
-	ticks = time(NULL);
-	/*sprintf(buf, "%sDate: %s\r\n", buf, ctime(&ticks));*/
-	/*sprintf(buf, "%sContent-Length: %ld\r\n", buf, 0);*/
+	//ticks = time(NULL);
+	//sprintf(buf, "%sDate: %s\r\n", buf, ctime(&ticks));
 	sprintf(buf, "%sContent-Length: %ld\r\n", buf, sbuf.st_size);
 	getfiletype(filename, filetype);
 	sprintf(buf, "%sContent-Type: %s\r\n\r\n", buf, filetype);
@@ -90,10 +89,12 @@ readfile(int fd, char *filename)
 	if (filep < 0)
 		tiny_error("mmap error");
 
-	close(filefd);
+	if (close(filefd) < 0)
+		tiny_error("close file error");
 
-	if (tiny_writen(fd, filep, sbuf.st_size) < 0)
+	if (tiny_writen(fd, filep, sbuf.st_size) < 0) {
 		tiny_error("write socket error");
+	}
 
 	if (munmap(filep, sbuf.st_size) < 0)
 		tiny_error("munmap error");
@@ -165,8 +166,10 @@ closesock(struct tiny_msg *msg)
 	}
 
 	assert(msg->fd_from >= 0);
-	poll_del(msg->fd_from);
-	close(msg->fd_from);
+	if (poll_del(msg->fd_from) < 0)
+		tiny_error("%s", "poll_del error");
+	if (close(msg->fd_from) < 0)
+		tiny_error("%s", "close socket error");
 
 	free(msg);
 }
@@ -187,6 +190,7 @@ read_ioerror(struct tiny_msg *msg)
 		case EWOULDBLOCK:
 #endif
 			//if blocked, save the received data to buffer for next read
+			tiny_notice("blocked request");
 			bufsize = tiny_bufsize();
 			if (bufsize < 0) 
 				tiny_error("tiny_bufsize error");
@@ -241,9 +245,10 @@ routine(void *arg)
 				goto end;
 			}
 
-			//if (get_local(msg->fd_from, request)) {
-				//goto end;
-			//}
+			if (get_local(msg->fd_from, request)) {
+				closesock(msg);
+				goto end;
+			}
 
 			dispatch(msg);
 			pass_handler_set[msg->param_pass]->forward(msg);

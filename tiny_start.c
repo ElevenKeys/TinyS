@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#include <signal.h>
+#include <errno.h>
 
 #include "tiny_config.h"
 #include "tiny_worker.h"
@@ -15,6 +17,9 @@
 #include "tiny_socket.h"
 #include "tiny_mq.h"
 
+typedef void sigfunc(int);
+static sigfunc* signal_(int signo, sigfunc *func);
+static void sig_handler(int signo);
 static int init_config(struct tiny_config*);
 static tiny_context c =
 {
@@ -46,6 +51,9 @@ main(int argc, char **argv)
 			tiny_error("daemon error");
 	}
 
+	if (signal_(SIGPIPE, sig_handler) == SIG_ERR)
+		tiny_error("signal error");
+
 	pthread_t pid[config->thread];
 	for (int i = 0; i < config->thread; i++) {
 		if (pthread_create(pid + i, NULL, routine, &c) < 0)
@@ -60,30 +68,62 @@ main(int argc, char **argv)
 		for (int i = 0; i < n; i++) {
 			if (msgs[i] == NULL) {
 				len = sizeof(addr);
-				connfd = accept(listenfd, (SA*)&addr, &len);
-				if (connfd < 0)
-					tiny_error("accept error");
+				while ((connfd = accept(listenfd, (SA*)&addr, &len)) >= 0)
+				{
+					debug("connect from %s, new fd is %d", sock_ntop((SA*)&addr, len), connfd);
 
-				debug("connect from %s", sock_ntop((SA*)&addr, len));
-				
-				msg = (struct tiny_msg*)malloc(sizeof(struct tiny_msg));
-				msg->type = FORWARD;
-				msg->fd_from = connfd;
-				msg->fd_to = -1;
-				msg->buf = NULL;
-				msg->use = false;
+					msg = (struct tiny_msg*)malloc(sizeof(struct tiny_msg));
+					msg->type = FORWARD;
+					msg->fd_from = connfd;
+					msg->fd_to = -1;
+					msg->buf = NULL;
+					msg->use = false;
 
-				poll_add(connfd, msg);
+					poll_add(connfd, msg);
+				}
+				if (connfd < 0) {
+					switch (errno) {
+						case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+						case EWOULDBLOCK:
+#endif
+							continue;
+						default:
+							tiny_error("accept error");
+					}
+				}
+
 			} else {
 				tiny_mq_push(msgs[i]);
 
-				debug("dispatch message:type is %s, socket is %d", msgs[i]->type == FORWARD?"forward":"response", msgs[i]->fd_from);
-
 				if(c.sleep > 0)
-					pthread_cond_signal(&c.cond);
+					pthread_cond_broadcast(&c.cond);
 			}
 		}
 	}
+}
+
+static sigfunc* signal_(int signo, sigfunc *func)
+{
+	struct sigaction act, oact;
+
+	act.sa_handler = func;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	if (signo == SIGALRM) {
+#ifdef SA_INTERRUPT
+		act.sa_flags |= SA_INTERRUPT;
+#endif
+	} else {
+#ifdef SA_RESTART
+		act.sa_flags |= SA_RESTART;
+#endif
+	}
+
+	if (sigaction(signo, &act, &oact) < 0)
+		return SIG_ERR;
+	return oact.sa_handler;
 }
 
 static int init_config(struct tiny_config *config)
@@ -101,4 +141,9 @@ static int init_config(struct tiny_config *config)
 	strcpy(config->appserver[1].app_addr, "www.bilibili.com");
 	strcpy(config->appserver[1].app_port, "http");
 	return 0;
+}
+
+static void sig_handler(int signo)
+{
+	tiny_notice("received signal %d",signo); 
 }
