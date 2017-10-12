@@ -33,7 +33,7 @@ clienterror(int fd, int errnum, char *errmsg)
 }
 
 static void
-getfiletype(char *filename, char *filetype)
+getminetype(char *filename, char *filetype)
 {
 	if (strstr(filename, ".html"))
 		strcpy(filetype, "text/html");
@@ -75,7 +75,7 @@ readfile(int fd, char *filename)
 	//ticks = time(NULL);
 	//sprintf(buf, "%sDate: %s\r\n", buf, ctime(&ticks));
 	sprintf(buf, "%sContent-Length: %ld\r\n", buf, sbuf.st_size);
-	getfiletype(filename, filetype);
+	getminetype(filename, filetype);
 	sprintf(buf, "%sContent-Type: %s\r\n\r\n", buf, filetype);
 
 	if (tiny_writen(fd, buf, strlen(buf)) < 0)
@@ -106,7 +106,6 @@ static bool
 get_local(int sockfd,char *request)
 {
 	char method[16], version[16], url[MAXLINE], filename[MAXLINE] = ".";
-	size_t tail;
 	
 	sscanf(request, "%s %s %s", method, url, version);
 	
@@ -118,11 +117,7 @@ get_local(int sockfd,char *request)
 
 	strcat(filename, url);
 
-	tail = strlen(filename) - 1;
-	if (filename[tail] == '/')
-		filename[tail] = 0;
-	
-	if (!strcmp(filename,"."))
+	if (!strcmp(filename,"./"))
 		strcpy(filename, "./index.html");
 
 	readfile(sockfd, filename);
@@ -190,7 +185,7 @@ read_ioerror(struct tiny_msg *msg)
 		case EWOULDBLOCK:
 #endif
 			//if blocked, save the received data to buffer for next read
-			tiny_notice("blocked request");
+			debug("blocked request");
 			bufsize = tiny_bufsize();
 			if (bufsize < 0) 
 				tiny_error("tiny_bufsize error");
@@ -245,10 +240,10 @@ routine(void *arg)
 				goto end;
 			}
 
-			if (get_local(msg->fd_from, request)) {
-				closesock(msg);
-				goto end;
-			}
+            if (get_local(msg->fd_from, request)) {
+                closesock(msg);
+                goto end;
+            }
 
 			dispatch(msg);
 			pass_handler_set[msg->param_pass]->forward(msg);

@@ -68,8 +68,7 @@ main(int argc, char **argv)
 		for (int i = 0; i < n; i++) {
 			if (msgs[i] == NULL) {
 				len = sizeof(addr);
-				while ((connfd = accept(listenfd, (SA*)&addr, &len)) >= 0)
-				{
+				while ((connfd = accept(listenfd, (SA*)&addr, &len)) >= 0) {
 					debug("connect from %s, new fd is %d", sock_ntop((SA*)&addr, len), connfd);
 
 					msg = (struct tiny_msg*)malloc(sizeof(struct tiny_msg));
@@ -135,10 +134,10 @@ static int init_config(struct tiny_config *config)
 	config->appserver_n = 2;
 	config->appserver = calloc(2, sizeof(struct proxy_server));
 	config->appserver[0].param_pass = PROXY;
-	strcpy(config->appserver[0].app_addr, "www.bilibili.com");
+	strcpy(config->appserver[0].app_addr, "www.dilidili.wang");
 	strcpy(config->appserver[0].app_port, "http");
 	config->appserver[1].param_pass = PROXY;
-	strcpy(config->appserver[1].app_addr, "www.bilibili.com");
+	strcpy(config->appserver[1].app_addr, "www.dilidili.wang");
 	strcpy(config->appserver[1].app_port, "http");
 	return 0;
 }
