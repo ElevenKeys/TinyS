@@ -77,7 +77,7 @@ loop_write(struct tiny_msg *msg, int fd_r, int fd_w, size_t len)
 }
 
 static void*
-proxy_forward(struct tiny_msg *msg)
+proxy_request_handler(struct tiny_msg *msg)
 {
 	assert(msg->fd_from > 0);
 	assert(msg->fd_to > 0);
@@ -133,7 +133,7 @@ proxy_forward(struct tiny_msg *msg)
 }
 
 static void*
-proxy_response(struct tiny_msg *msg)
+proxy_upstream_handler(struct tiny_msg *msg)
 {
 	assert(msg->fd_from > 0);
 	assert(msg->fd_to > 0);
@@ -222,4 +222,4 @@ proxy_response(struct tiny_msg *msg)
 	}
 }
 
-handler_module_t tiny_proxy_module = {proxy_forward, proxy_response};
+handler_module_t tiny_proxy_module = {proxy_request_handler, proxy_upstream_handler};

@@ -1,6 +1,6 @@
 CC=gcc
-#DEBUG = -DDEBUG
-DEBUG = 
+DEBUG = -DDEBUG
+#DEBUG = 
 CFLAGS = -Wall -O0 -g -I./ $(DEBUG)  
 OUTPATH = ./bin
 obj = tiny_io.o tiny_log.o tiny_poll.o tiny_socket.o  tiny_mq.o tiny_proxy_module.o tiny_worker.o tiny_start.o tiny_module.o

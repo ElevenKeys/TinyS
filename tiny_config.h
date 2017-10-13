@@ -29,28 +29,40 @@ struct tiny_config
 	struct proxy_server *appserver;
 };
 
-#define FORWARD 0
-#define RESPONSE 1
+#ifndef LINE
+#define LINE 0
+#define HEADER 1
+#define BODY 2
+#endif
+
+#ifndef CHUNKED
+#define LENGTH 0
+#define CHUNKED 1
+#endif
+
+typedef struct
+{
+    int phrase;
+    int fd;
+    int body_encoding;
+    char buf[BUFFSIZE];
+    size_t bufsize;
+
+    char *host;
+} connect_ctx;
 
 struct tiny_msg
 {
-	int type;
 	int param_pass;
-	int fd_from;
-	int fd_to;
-	char *host;
-
-	char *buf;
-	size_t bufsize;
-
-	bool use;
+    connect_ctx request;
+    connect_ctx upstream;
 };
 
 typedef void* (*pass_handler_t)(struct tiny_msg*);
 typedef struct 
 {
-	pass_handler_t forward;
-	pass_handler_t response;
+	pass_handler_t request_handler;
+	pass_handler_t upstream_handler;
 } handler_module_t;
 
 typedef struct

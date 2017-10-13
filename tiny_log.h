@@ -8,7 +8,7 @@ void tiny_error(char *msg, ...);
 void tiny_notice(char *msg, ...);
 
 #ifdef DEBUG
-#define debug(msg, ...) tiny_notice(msg, __VA_ARGS__)
+#define debug(msg, ...) tiny_notice(msg, ##__VA_ARGS__)
 #else
 #define debug(msg, ...)
 #endif
