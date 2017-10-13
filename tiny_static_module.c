@@ -9,6 +9,7 @@
 #include "tiny_log.h"
 #include "tiny_worker.h"
 #include "tiny_defs.h"
+#include "tiny_utils.h"
 
 static void
 getminetype(char *filename, char *filetype)

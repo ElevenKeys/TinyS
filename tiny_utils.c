@@ -1,65 +1,125 @@
+#include <stdlib.h>
+#include <assert.h>
+
+#include "tiny_config.h"
+#include "tiny_io.h"
+#include "tiny_log.h"
+#include "tiny_defs.h"
 
 static void
-clienterror(int fd, int errnum, char *errmsg)
+closeread(connect_ctx *ctx)
 {
-	char buf[BUFFSIZE];
+	int fd = ctx->fd;
+	assert(fd >= 0);
 
-	sprintf(buf, "HTTP/1.1 %d %s\r\n", errnum, errmsg);
-	sprintf(buf, "%s%s\r\n\r\n", buf, errmsg);
-	tiny_writen(fd, buf, strlen(buf));
-}
-
-void
-closesock(struct tiny_msg *msg)
-{
-	//release the fd and message
-	if (msg->fd_to >= 0) {
-		close(msg->fd_to);
-		poll_del(msg->fd_to);
+	if (!ctx->peer_connect) {
+		closewrite(ctx->peer_connect);
 	}
 
-	assert(msg->fd_from >= 0);
-	if (poll_del(msg->fd_from) < 0)
+	r_close(ctx->sockstate);
+	if (poll_del(fd) < 0)
 		tiny_error("%s", "poll_del error");
-	if (close(msg->fd_from) < 0)
-		tiny_error("%s", "close socket error");
 
-	free(msg);
+	if (ctx->sockstate == SOCK_RW_CLOSE)
+	{
+		if (close(fd) < 0)
+			tiny_error("%s", "close socket error");
+
+		release_conn_ctx(ctx);
+	}
 }
 
-void
-read_ioerror(struct tiny_msg *msg)
+static void
+closewrite(connect_ctx *ctx)
+{
+	int fd = ctx->fd;
+	assert(fd >= 0);
+
+	if (!ctx->peer_connect) {
+		closeread(ctx->peer_connect);
+	}
+
+	w_close(ctx->sockstate);
+	if (ctx->sockstate == SOCK_RW_CLOSE)
+	{
+		if (close(fd) < 0)
+			tiny_error("%s", "close socket error");
+
+		release_conn_ctx(ctx);
+	}
+}
+
+static void
+read_ioerror(connect_ctx *ctx)
 {
 	ssize_t bufsize;
-	char *buf;
 
 	switch (errno) {
 		case ECONNRESET:
 			tiny_notice("unexpected reset");
-			closesock(msg);
+			closeread(ctx);
+			closewrite(ctx);
 			break;
 		case EAGAIN:
 #if EAGAIN != EWOULDBLOCK
 		case EWOULDBLOCK:
 #endif
-			//if blocked, save the received data to buffer for next read
+			//if socket blocked, save the received data to buffer for next read
 			debug("blocked request");
 			bufsize = tiny_bufsize();
 			if (bufsize < 0) 
 				tiny_error("tiny_bufsize error");
 
-			buf = malloc(bufsize);
-			tiny_clearbuf(buf, bufsize);
-
-			msg->buf = buf;
-			msg->bufsize = bufsize;
+			tiny_clearbuf(ctx->buf, bufsize);
+			ctx->bufsize = bufsize;
 			break;
 		default:
 			tiny_error("read socket error");
 	}
 }
 
-static void
+int
+readline_wrapper(connect_ctx *ctx, char *buf, size_t size)
+{
+	ssize_t readcnt;
+
+	readcnt = tiny_readline(ctx->fd, buf, size, CRLF);
+	if (readcnt < 0) {
+		read_ioerror(ctx);
+		return -1;
+	} else if (readcnt == 0) {
+		closeread(ctx);
+		return 0;
+	}
+
+	return readcnt;
+}
+
+int
+readn_wrapper(connect_ctx *ctx, char *buf, size_t toberead)
+{
+	ssize_t readcnt;
+
+	readcnt = tiny_readn(ctx->fd, buf, toberead);
+	if (readcnt < 0) {
+		read_ioerror(ctx);
+		return -1;
+	} else if (readcnt == 0) {
+		closeread(ctx);
+		return 0;
+	}
+
+	return readcnt;
+}
+
+void
+writen_wrapper(connect_ctx *ctx, char *buf, size_t size)
+{
+	if (tiny_writen(ctx->fd, buf, size) < 0)
+		tiny_error("write socket error");
+}
+
+void
 dispatch(struct tiny_msg *msg)
 {
 	//distribute the request according to the balacing strategy.
@@ -81,5 +141,28 @@ dispatch(struct tiny_msg *msg)
 
 		poll_add(msg->fd_to, msg);
 	}
+}
+
+void
+clienterror(int fd, int errnum, char *errmsg)
+{
+	char buf[BUFFSIZE];
+
+	sprintf(buf, "HTTP/1.1 %d %s\r\n", errnum, errmsg);
+	sprintf(buf, "%s%s\r\n\r\n", buf, errmsg);
+	tiny_writen(fd, buf, strlen(buf));
+}
+
+void
+state_init(module_t *module, connect_ctx *ctx)
+{
+	((state_transfer_t*)module)[ctx->state](ctx);
+}
+
+void
+state_trans(module_t *module, connect_ctx *ctx, int state)
+{
+	ctx->state = state;
+	((state_transfer_t*)module)[state](ctx);
 }
 

@@ -9,51 +9,36 @@
 #include "tiny_log.h"
 #include "tiny_worker.h"
 #include "tiny_defs.h"
+#include "tiny_utils.h"
 
+/*macro*/
 #define CONTENT_LENGTH  "Content-Length"
 #define TRANSFER_ENCODING  "Transfer-Encoding"
 #define HOST "Host"
 #define CHUNKED "chunked"
 
-static int
-readline_wrapper(struct tiny_msg *msg, int fd, char *buf, size_t size)
+/*Function prototype*/
+static void request_line_handler(connect_ctx*);
+static void request_header_handler(connect_ctx*);
+static void request_body_handler(connect_ctx*);
+static void upstream_line_handler(connect_ctx*);
+static void upstream_header_handler(connect_ctx*);
+static void upstream_body_handler(connect_ctx*);
+module_t tiny_proxy_module = {
+	request_line_handler,
+	request_header_handler,
+	request_body_handler,
+	upstream_line_handler,
+	upstream_header_handler,
+	upstream_body_handler
+};
+
+static void 
+request_line_handler(connect_ctx* ctx)
 {
-	ssize_t readcnt;
-
-	readcnt = tiny_readline(fd, buf, size, CRLF);
-	if (readcnt < 0) {
-		read_ioerror(msg);
-		return -1;
-	} else if (readcnt == 0) {
-		closesock(msg);
-		return 0;
-	}
-
-	return readcnt;
-}
-
-static int
-readn_wrapper(struct tiny_msg *msg, int fd, char *buf, size_t toberead)
-{
-	ssize_t readcnt;
-
-	readcnt = tiny_readn(fd, buf, toberead);
-	if (readcnt < 0) {
-		read_ioerror(msg);
-		return -1;
-	} else if (readcnt == 0) {
-		closesock(msg);
-		return 0;
-	}
-
-	return readcnt;
-}
-
-static inline void
-writen_wrapper(int fd, char *buf, size_t size)
-{
-	if (tiny_writen(fd, buf, size) < 0)
-		tiny_error("write socket error");
+	readcnt = readline_wrapper(msg, msg->fd_from, buf, sizeof(buf));
+	if (readcnt <= 0) 
+		return;
 }
 
 static int

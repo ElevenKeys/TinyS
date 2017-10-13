@@ -17,10 +17,12 @@
 #include "tiny_socket.h"
 #include "tiny_mq.h"
 
+/*Function prototype*/
 typedef void sigfunc(int);
 static sigfunc* signal_(int signo, sigfunc *func);
 static void sig_handler(int signo);
 static int init_config(struct tiny_config*);
+
 static tiny_context c =
 {
 	PTHREAD_MUTEX_INITIALIZER,
@@ -33,7 +35,7 @@ main(int argc, char **argv)
 {
 	struct tiny_config *config = &c.config;
 	int listenfd, connfd, n;
-	struct tiny_msg *msgs[1024], *msg;
+	connect_ctx *ctxs[1024], *ctx;
 	struct sockaddr_storage addr;
 	socklen_t len;
 
@@ -64,21 +66,16 @@ main(int argc, char **argv)
 	poll_add(listenfd, NULL);
 
 	while (1) {
-		n = poll_wait((void **)&msgs, 1024);
+		n = poll_wait((void **)&ctxs, 1024);
 		for (int i = 0; i < n; i++) {
-			if (msgs[i] == NULL) {
+			if (ctxs[i] == NULL) {
 				len = sizeof(addr);
 				while ((connfd = accept(listenfd, (SA*)&addr, &len)) >= 0) {
 					debug("connect from %s, new fd is %d", sock_ntop((SA*)&addr, len), connfd);
 
-					msg = (struct tiny_msg*)malloc(sizeof(struct tiny_msg));
-					msg->type = FORWARD;
-					msg->fd_from = connfd;
-					msg->fd_to = -1;
-					msg->buf = NULL;
-					msg->use = false;
+					create_conn_ctx(&ctx, connfd, PHRASE_REQUEST_LINE);
 
-					poll_add(connfd, msg);
+					poll_add(connfd, ctx);
 				}
 				if (connfd < 0) {
 					switch (errno) {
@@ -93,7 +90,7 @@ main(int argc, char **argv)
 				}
 
 			} else {
-				tiny_mq_push(msgs[i]);
+				tiny_mq_push(ctxs[i]);
 
 				if(c.sleep > 0)
 					pthread_cond_broadcast(&c.cond);

@@ -68,13 +68,7 @@ routine(void *arg)
 
 		debug("%d thread awake, fd %d, type %s", pthread_self(), msg->fd_from, msg->type == FORWARD?"FORWARD":"RESPONSE");
 		//if there is buffer for last incomplete read,initialize the io with the buffer
-		if (msg->buf != NULL) {
-			tiny_initbuf(msg->buf, msg->bufsize);
-			free(msg->buf);
-			msg->buf = NULL;
-		} else {
-			tiny_initbuf(NULL, 0);
-		}
+		tiny_initbuf(msg->buf, msg->bufsize);
 
 		if (msg->type == FORWARD) {
 			readn = tiny_peekline(msg->fd_from, request, MAXLINE, CRLF);
