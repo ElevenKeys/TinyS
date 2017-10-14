@@ -5,8 +5,9 @@
 #include "tiny_io.h"
 #include "tiny_log.h"
 #include "tiny_defs.h"
+#include "tiny_utils.h"
 
-static void
+void
 closeread(connect_ctx *ctx)
 {
 	int fd = ctx->fd;
@@ -29,15 +30,11 @@ closeread(connect_ctx *ctx)
 	}
 }
 
-static void
+void
 closewrite(connect_ctx *ctx)
 {
 	int fd = ctx->fd;
 	assert(fd >= 0);
-
-	if (!ctx->peer_connect) {
-		closeread(ctx->peer_connect);
-	}
 
 	w_close(ctx->sockstate);
 	if (ctx->sockstate == SOCK_RW_CLOSE)
@@ -49,6 +46,13 @@ closewrite(connect_ctx *ctx)
 	}
 }
 
+void
+close(connect_ctx *ctx)
+{
+    closeread(ctx);
+    closewrite(ctx);
+}
+
 static void
 read_ioerror(connect_ctx *ctx)
 {
@@ -57,8 +61,7 @@ read_ioerror(connect_ctx *ctx)
 	switch (errno) {
 		case ECONNRESET:
 			tiny_notice("unexpected reset");
-			closeread(ctx);
-			closewrite(ctx);
+            close(ctx);
 			break;
 		case EAGAIN:
 #if EAGAIN != EWOULDBLOCK
@@ -88,7 +91,6 @@ readline_wrapper(connect_ctx *ctx, char *buf, size_t size)
 		read_ioerror(ctx);
 		return -1;
 	} else if (readcnt == 0) {
-		closeread(ctx);
 		return 0;
 	}
 
@@ -105,7 +107,6 @@ readn_wrapper(connect_ctx *ctx, char *buf, size_t toberead)
 		read_ioerror(ctx);
 		return -1;
 	} else if (readcnt == 0) {
-		closeread(ctx);
 		return 0;
 	}
 
@@ -152,17 +153,3 @@ clienterror(int fd, int errnum, char *errmsg)
 	sprintf(buf, "%s%s\r\n\r\n", buf, errmsg);
 	tiny_writen(fd, buf, strlen(buf));
 }
-
-void
-state_init(module_t *module, connect_ctx *ctx)
-{
-	((state_transfer_t*)module)[ctx->state](ctx);
-}
-
-void
-state_trans(module_t *module, connect_ctx *ctx, int state)
-{
-	ctx->state = state;
-	((state_transfer_t*)module)[state](ctx);
-}
-

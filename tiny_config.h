@@ -30,19 +30,10 @@ struct tiny_config
 	struct proxy_server *appserver;
 };
 
-//The defination of state macro must be consistent with the order of the handler in struct module_t
-#ifndef PHRASE_REQUEST_LINE
-#define PHRASE_REQUEST_LINE 0
-#define PHRASE_REQUEST_HEADER 1
-#define PHRASE_REQUEST_BODY 2
-#define PHRASE_UPSTREAM_LINE 3
-#define PHRASE_UPSTREAM_HEADER 4
-#define PHRASE_UPSTREAM_BODY 5
-#endif
-
 #ifndef BODY_TYPE_LENGTH
-#define BODY_TYPE_LENGTH 0
-#define BODY_TYPE_CHUNKED 1
+#define BODY_TYPE_NONE 0
+#define BODY_TYPE_LENGTH 1
+#define BODY_TYPE_CHUNKED 2
 #endif
 
 #ifndef SOCK_OPEN
@@ -57,14 +48,19 @@ struct tiny_config
 
 typedef struct
 {
-    int phrase;
     int fd;
+
     char buf[MAXLINE];
     size_t bufsize;
+
     int body_type;
     size_t body_left;
+
     int sockstat;
-    connect_ctx *peer_connect; //for proxy
+
+    connect_ctx *peer_connect; //for reverse proxy
+
+    state_transfer_t *handler;
 
     //reserved for upstream connect
 	int param_pass;
@@ -74,12 +70,8 @@ typedef struct
 typedef void (*state_transfer_t)(connect_ctx*);
 typedef struct 
 {
-	state_transfer_t request_line_handler;
-	state_transfer_t request_header_handler;
-	state_transfer_t request_body_handler;
-	state_transfer_t upstream_line_handler;
-	state_transfer_t upstream_header_handler;
-	state_transfer_t upstream_body_handler;
+	state_transfer_t request_entry;
+	state_transfer_t upstream_entry;
 } module_t;
 
 typedef struct
