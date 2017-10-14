@@ -50,8 +50,12 @@ typedef struct
 {
     int fd;
 
+    char io[MAXLINE];
+    char *iostart;
+    char *ioend;
+
     char buf[MAXLINE];
-    size_t bufsize;
+    char *bufend;
 
     int body_type;
     size_t body_left;
@@ -67,7 +71,7 @@ typedef struct
     char *host;
 } connect_ctx;
 
-typedef void (*state_transfer_t)(connect_ctx*);
+typedef bool (*state_transfer_t)(connect_ctx*);
 typedef struct 
 {
 	state_transfer_t request_entry;

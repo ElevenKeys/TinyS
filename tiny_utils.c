@@ -56,25 +56,10 @@ close(connect_ctx *ctx)
 static void
 read_ioerror(connect_ctx *ctx)
 {
-	ssize_t bufsize;
-
 	switch (errno) {
 		case ECONNRESET:
 			tiny_notice("unexpected reset");
             close(ctx);
-			break;
-		case EAGAIN:
-#if EAGAIN != EWOULDBLOCK
-		case EWOULDBLOCK:
-#endif
-			//if socket blocked, save the received data to buffer for next read
-			debug("blocked request");
-			bufsize = tiny_bufsize();
-			if (bufsize < 0) 
-				tiny_error("tiny_bufsize error");
-
-			tiny_clearbuf(ctx->buf, bufsize);
-			ctx->bufsize = bufsize;
 			break;
 		default:
 			tiny_error("read socket error");
@@ -113,6 +98,60 @@ readn_wrapper(connect_ctx *ctx, char *buf, size_t toberead)
 	return readcnt;
 }
 
+ssize_t
+read_wrapper(connect_ctx *ctx)
+{
+	ssize_t len;
+	
+	while (ctx->iostart == ctx->ioend) {
+		len = read(ctx->fd, ctx->io, MAXLINE);
+		if (len < 0) {
+			switch (errno) {
+				case EINTR:
+					continue;
+                    break;
+				case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+				case EWOULDBLOCK:
+#endif
+                    return IO_BLOCK;
+				default:
+                    read_ioerror(ctx);
+					return IO_ERROR;
+			}
+		}
+		else if (len == 0)
+            closeread(ctx);
+            tiny_notice("unexpected close")
+			return IO_CLOSE;
+		else {
+            ctx->iostart = ctx->io;
+            ctx->ioend = ctx->iostart + len;
+            return len;
+		}
+	}
+    return ctx->ioend - ctx->iostart;
+}
+
+ssize_t
+write_wrapper(connect_ctx *ctx, char *buf, size_t n)
+{
+	size_t n_left = n;
+	ssize_t n_writen;
+
+	while (n_left > 0) {
+		n_writen = write(ctx->fd, buf, n_left);
+		if (n_writen < 0) {
+			if(errno == EINTR)
+				continue;
+			else
+				return -1;
+		}
+		n_left -= n_writen;
+		buf += n_writen;
+	}
+	return n;
+}
 void
 writen_wrapper(connect_ctx *ctx, char *buf, size_t size)
 {
